@@ -3,3 +3,6 @@ raw_dataset/
 processed_dataset/**
 # ignore reading materials
 Reading\ materials/
+
+# ignore helper scripts
+# helper/

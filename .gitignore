@@ -1,5 +1,5 @@
 # ignore dataset
 raw_dataset/
-processed_dataset/
+processed_dataset/**
 # ignore reading materials
 Reading\ materials/

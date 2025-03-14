@@ -6,6 +6,9 @@ from src.dataloader import TraversablePathDataloader
 from src.model import SimpleSegmentationCNN, SegmentationLoss
 import os
 
+# params (TODO : set using argparser - Vidhant)
+preprocess_data = False
+
 # Hyperparameters
 BATCH_SIZE = 16
 NUM_EPOCHS = 50
@@ -31,7 +34,7 @@ data_loader = TraversablePathDataloader(
     raw_data_path=RAW_DATA_PATH,
     processed_data_path=PROCESSED_DATA_PATH,
     batch_size=BATCH_SIZE,
-    preprocess_data=False,
+    preprocess_data=preprocess_data,
     transform=transform,
     num_workers=4
 )

@@ -110,7 +110,7 @@ class CreateBinaryGT():
                     self.convert_gt_to_binary_mask(gt_path, output_mask_path)
                     print(f"Processed: {gt_path} -> {output_mask_path}")
 
-if __name__ == "__main__":
-    create_binary_mask = CreateBinaryGT("processed_dataset")  
+# if __name__ == "__main__":
+#     create_binary_mask = CreateBinaryGT("processed_dataset")  
 
-    create_binary_mask.process_cityscapes_gt()  
+#     create_binary_mask.process_cityscapes_gt()  

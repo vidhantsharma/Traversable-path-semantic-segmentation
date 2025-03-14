@@ -26,11 +26,11 @@ class CreateFolderStructure():
                             os.makedirs(dest_path, exist_ok=True)
                             
                             shutil.copy(os.path.join(city_path, file), os.path.join(dest_path, file))
-                            print(f"Moved: {file} -> {dest_path}")
+                            print(f"Copied: {file} -> {dest_path}")
 
-if __name__ == "__main__":
-    source_directory = r"raw_dataset"
-    destination_directory = r"processed_dataset"
+# if __name__ == "__main__":
+#     source_directory = r"raw_dataset"
+#     destination_directory = r"processed_dataset"
     
-    create_foldeer_structure = CreateFolderStructure(source_directory, destination_directory)
-    create_foldeer_structure.create_folders_and_move_files()
+#     create_folder_structure = CreateFolderStructure(source_directory, destination_directory)
+#     create_folder_structure.create_folders_and_move_files()

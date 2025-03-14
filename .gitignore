@@ -5,4 +5,10 @@ processed_dataset/**
 Reading\ materials/
 
 # ignore helper scripts
-# helper/
+helper/
+
+# ignore logs
+logs/
+
+# ignore pychache
+__pycache__/

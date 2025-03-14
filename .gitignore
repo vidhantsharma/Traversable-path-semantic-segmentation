@@ -12,3 +12,6 @@ logs/
 
 # ignore pychache
 __pycache__/
+
+# ignore checkpoints
+checkpoints/*

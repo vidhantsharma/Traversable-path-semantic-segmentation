@@ -45,13 +45,6 @@ class TraversablePathDataset(Dataset):
             image = self.transform(image)
             mask = self.transform(mask)
 
-        # Convert mask to NumPy array
-        mask_array = np.array(mask, dtype=np.uint8)
+        mask = torch.tensor(np.array(mask, dtype=np.uint8), dtype=torch.long)
 
-        # Get linear indices of white pixels (mask=1)
-        white_pixel_indices = np.nonzero(mask_array.flatten())[0]  # Flatten (H, W) -> (H*W,)
-
-        # Store indices in a dictionary
-        mask_dict = {"indices": torch.tensor(white_pixel_indices, dtype=torch.long)}
-
-        return image, mask_dict
+        return image, mask

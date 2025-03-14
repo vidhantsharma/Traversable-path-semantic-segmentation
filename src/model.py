@@ -3,128 +3,100 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class SimpleSegmentationCNN(nn.Module):
-    def __init__(self, input_size=(256, 256)):
+    def __init__(self):
         """
-        A simple fully convolutional neural network (FCN) for semantic segmentation.
-        The model predicts a binary mask for traversable paths.
-
-        Args:
-            input_size (tuple): Expected input image size (H, W) to reconstruct ground truth mask.
+        A simple fully convolutional neural network (FCN) for binary semantic segmentation.
         """
         super(SimpleSegmentationCNN, self).__init__()
-        self.input_size = input_size  # Needed to reconstruct full mask from sparse GT
 
         # Encoder (Downsampling)
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=1, padding=1)
-        self.conv3 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
+        self.conv3 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
 
         # Decoder (Upsampling)
-        self.upconv1 = nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=3, stride=2, padding=1, output_padding=1)
-        self.upconv2 = nn.ConvTranspose2d(in_channels=32, out_channels=16, kernel_size=3, stride=2, padding=1, output_padding=1)
-        self.final_conv = nn.Conv2d(in_channels=16, out_channels=1, kernel_size=1)  # Single channel output for binary mask
+        self.upconv1 = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.upconv2 = nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2, padding=1, output_padding=1)
+        self.upconv3 = nn.ConvTranspose2d(16, 16, kernel_size=3, stride=2, padding=1, output_padding=1)  # Extra upsampling layer
+        self.final_conv = nn.Conv2d(16, 2, kernel_size=1)  # 2 output channels for binary segmentation
 
     def forward(self, x):
         """
-        Forward pass through the network.
+        Forward pass.
         Args:
-            x (Tensor): Input image tensor (batch_size, 3, H, W)
-
+            x (Tensor): Input image tensor (batch_size, 3, 256, 256)
         Returns:
-            Tensor: Output mask tensor (batch_size, 1, H, W)
+            Tensor: Logits (batch_size, 2, 256, 256)
         """
         # Encoder
         x1 = F.relu(self.conv1(x))
-        x1 = F.max_pool2d(x1, kernel_size=2, stride=2)
+        x1 = F.max_pool2d(x1, kernel_size=2, stride=2)  # 128x128
 
         x2 = F.relu(self.conv2(x1))
-        x2 = F.max_pool2d(x2, kernel_size=2, stride=2)
+        x2 = F.max_pool2d(x2, kernel_size=2, stride=2)  # 64x64
 
         x3 = F.relu(self.conv3(x2))
-        x3 = F.max_pool2d(x3, kernel_size=2, stride=2)
+        x3 = F.max_pool2d(x3, kernel_size=2, stride=2)  # 32x32
 
-        # Decoder
-        x4 = F.relu(self.upconv1(x3))
-        x5 = F.relu(self.upconv2(x4))
+        # Decoder (Upsampling)
+        x4 = F.relu(self.upconv1(x3))  # 64x64
+        x5 = F.relu(self.upconv2(x4))  # 128x128
+        x6 = F.relu(self.upconv3(x5))  # 256x256
 
-        # Output layer
-        output = torch.sigmoid(self.final_conv(x5))  # Use sigmoid for binary mask
-
+        output = self.final_conv(x6)  # Raw logits (batch_size, 2, 256, 256)
         return output
 
-
 class SegmentationLoss(nn.Module):
-    def __init__(self, input_size=(256, 256), use_dice_loss=True):
+    def __init__(self, use_dice_loss=True):
         """
-        Custom loss function for semantic segmentation.
-
+        Loss function for segmentation.
         Args:
-            input_size (tuple): Expected input image size (H, W) for mask reconstruction.
-            use_dice_loss (bool): Whether to use Dice loss along with BCE.
+            use_dice_loss (bool): Whether to use Dice loss along with CrossEntropy.
         """
         super(SegmentationLoss, self).__init__()
-        self.input_size = input_size
         self.use_dice_loss = use_dice_loss
-        self.bce_loss = nn.BCELoss()
-
-    def reconstruct_mask(self, sparse_gt_dict, batch_size):
-        """
-        Converts sparse GT dictionary (linear indices of white pixels) to a full-size mask.
-
-        Args:
-            sparse_gt_dict (list of dicts): Each dict contains pixel indices for one sample.
-            batch_size (int): Number of images in batch.
-
-        Returns:
-            Tensor: Full binary masks of shape (batch_size, 1, H, W).
-        """
-        height, width = self.input_size
-        full_masks = torch.zeros((batch_size, 1, height, width), dtype=torch.float32)
-
-        for i in range(batch_size):
-            indices = sparse_gt_dict[i]["white_pixel_indices"]  # Extract white pixel indices
-            y_coords, x_coords = zip(*indices) if indices else ([], [])
-            full_masks[i, 0, y_coords, x_coords] = 1.0  # Set white pixels to 1
-
-        return full_masks.to(next(self.parameters()).device)  # Move to correct device (CPU/GPU)
+        self.ce_loss = nn.CrossEntropyLoss()
 
     def dice_loss(self, preds, targets, smooth=1.0):
         """
         Computes the Dice loss for binary segmentation.
-
         Args:
-            preds (Tensor): Model output (batch_size, 1, H, W).
-            targets (Tensor): Ground truth masks (batch_size, 1, H, W).
-            smooth (float): Smoothing term to avoid division by zero.
-
+            preds (Tensor): Model output logits (batch_size, 2, H, W)
+            targets (Tensor): Ground truth (batch_size, H, W)
         Returns:
             Tensor: Dice loss value.
         """
-        preds = preds.view(-1)
-        targets = targets.view(-1)
+        preds = torch.softmax(preds, dim=1)[:, 1, :, :]  # Class 1 (traversable) probability
+
+        preds = preds.contiguous().view(-1)
+        targets = targets.contiguous().view(-1).float()  # Convert to float for division
+        
         intersection = (preds * targets).sum()
+
         return 1 - (2.0 * intersection + smooth) / (preds.sum() + targets.sum() + smooth)
 
-    def forward(self, predictions, sparse_gt_dict):
+    def forward(self, predictions, targets):
         """
-        Compute the combined loss.
-
+        Compute loss.
         Args:
-            predictions (Tensor): Model output masks (batch_size, 1, H, W).
-            sparse_gt_dict (list of dicts): Sparse ground truth masks as a dictionary.
-
+            predictions (Tensor): Model output logits (batch_size, 2, H, W).
+            targets (Tensor): Target masks (batch_size, 1, H, W) with values {0,1}.
         Returns:
-            Tensor: Computed loss value.
+            Tensor: Computed loss.
         """
-        batch_size = predictions.shape[0]
-        full_gt_masks = self.reconstruct_mask(sparse_gt_dict, batch_size)
+        # Move targets to same device as predictions
+        targets = targets.to(predictions.device)
 
-        # BCE Loss
-        bce = self.bce_loss(predictions, full_gt_masks)
+        # Convert (batch_size, 1, H, W) → (batch_size, H, W)
+        targets = targets.squeeze(1).long()
 
-        # Dice Loss (Optional)
+        # Compute cross-entropy loss (logits should be passed directly)
+        ce = self.ce_loss(predictions, targets)
+
         if self.use_dice_loss:
-            dice = self.dice_loss(predictions, full_gt_masks)
-            return 0.5 * bce + 0.5 * dice  # Weighted combination
+            dice = self.dice_loss(predictions, targets)
+            return 0.5 * ce + 0.5 * dice  # Weighted loss
         else:
-            return bce  # Only BCE loss
+            return ce  # Only CE loss
+
+

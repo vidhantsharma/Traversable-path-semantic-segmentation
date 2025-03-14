@@ -2,6 +2,7 @@ from torch.utils.data import DataLoader
 from src.dataset import TraversablePathDataset
 from utils.preprocess_data import ProcessData
 from pathlib import Path
+import torch
 
 class TraversablePathDataloader:
     def __init__(self, raw_data_path, processed_data_path, batch_size=32, preprocess_data=False, shuffle=True, transform=None, num_workers=4):

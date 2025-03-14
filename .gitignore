@@ -14,4 +14,4 @@ logs/
 __pycache__/
 
 # ignore checkpoints
-checkpoints/*
+checkpoints/

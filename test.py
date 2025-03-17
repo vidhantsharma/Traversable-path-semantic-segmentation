@@ -30,7 +30,7 @@ def preprocess_image(image_path):
     return img
 
 # Load test image
-image_path = r"processed_dataset\train\aachen\aachen_000001_000019\aachen_000001_000019_leftImg8bit.png"
+image_path = r"processed_dataset\train\aachen\aachen_000162_000019\aachen_000162_000019_leftImg8bit.png"
 input_tensor = preprocess_image(image_path)
 
 # Run inference

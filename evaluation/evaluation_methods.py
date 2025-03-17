@@ -20,6 +20,11 @@ class EvaluationMethods:
         total_pixels = self.ground_truth.size
         accuracy = correct_pixels / total_pixels
         return accuracy
+    
+    @property
+    def f1_score_accuracy(self):
+        # TODO : varshitha
+        pass
 
 if __name__ == "__main__":
     # Paths to the ground truth and prediction images

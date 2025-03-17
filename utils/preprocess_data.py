@@ -51,9 +51,9 @@ class ProcessData():
         if augument_data:
             self.augment_data()
 
-if __name__ == "__main__":
-    data_path = "raw_dataset"
-    processed_path = "processed_dataset"
-    data_processor = ProcessData(data_path=data_path, processed_path=processed_path)
-    data_processor.run(retrieve_data = True, create_binary_mask = True, augument_data = False)
+# if __name__ == "__main__":
+#     data_path = "raw_dataset"
+#     processed_path = "processed_dataset"
+#     data_processor = ProcessData(data_path=data_path, processed_path=processed_path)
+#     data_processor.run(retrieve_data = True, create_binary_mask = True, augument_data = False)
 

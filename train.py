@@ -7,7 +7,7 @@ from src.model import SimpleSegmentationCNN, SegmentationLoss
 import os
 
 # params (TODO : set using argparser - Vidhant)
-preprocess_data = False
+preprocess_data = True
 
 # Hyperparameters
 BATCH_SIZE = 16
@@ -61,7 +61,8 @@ def train():
 
         for batch_idx, (images, masks) in enumerate(train_loader):
             images, masks = images.to(DEVICE), masks.to(DEVICE)
-
+            # images.shape = (batch_size, num_channels, w, h) -> (16, 3, 256, 256)
+            # masks.shape = (batch_size, num_channels, w, h) -> (16, 1, 256, 256)
             optimizer.zero_grad()
             outputs = model(images)
             loss = criterion(outputs, masks)

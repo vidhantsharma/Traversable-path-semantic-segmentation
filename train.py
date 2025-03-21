@@ -3,14 +3,14 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.utils.tensorboard import SummaryWriter
 from src.dataloader import TraversablePathDataloader
-from src.model import SimpleSegmentationCNN, SegmentationLoss
+from src.model import SimpleSegmentationCNN, UNetResNet,SegmentationLoss
 import os
 
 # params (TODO : set using argparser - Vidhant)
-preprocess_data = True
+preprocess_data = False
 
 # Hyperparameters
-BATCH_SIZE = 16
+BATCH_SIZE = 6
 NUM_EPOCHS = 50
 LEARNING_RATE = 0.001
 PATIENCE = 5  # Stop training if val loss doesn't improve for 'PATIENCE' epochs
@@ -24,7 +24,7 @@ SAVE_MODEL_PATH = "checkpoints/segmentation_model.pth"
 
 # Data Transforms
 transform = transforms.Compose([
-    transforms.Resize((256, 256)),
+    transforms.Resize((512, 512)),
     transforms.ToTensor(),
 ])
 
@@ -36,14 +36,15 @@ data_loader = TraversablePathDataloader(
     batch_size=BATCH_SIZE,
     preprocess_data=preprocess_data,
     transform=transform,
-    num_workers=4
+    num_workers=2
 )
 
 train_loader = data_loader.get_train_dataloader()
 val_loader = data_loader.get_validation_dataloader()
 
 # Model, Loss, Optimizer
-model = SimpleSegmentationCNN().to(DEVICE)
+# model = SimpleSegmentationCNN().to(DEVICE)
+model = UNetResNet().to(DEVICE)
 criterion = SegmentationLoss().to(DEVICE)
 optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 writer = SummaryWriter(LOG_DIR)

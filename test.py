@@ -5,8 +5,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from src.model import SimpleSegmentationCNN
 import os
+from evaluation.evaluation_methods import EvaluationMethods
 
-# Load the trained model
+# Load the tra$ined model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = SimpleSegmentationCNN().to(device)
 
@@ -30,7 +31,8 @@ def preprocess_image(image_path):
     return img
 
 # Load test image
-image_path = r"processed_dataset\train\aachen\aachen_000162_000019\aachen_000162_000019_leftImg8bit.png"
+image_path = r"processed_dataset\val\frankfurt\frankfurt_000000_000294\frankfurt_000000_000294_leftImg8bit.png"
+gt_path = r"processed_dataset\val\frankfurt\frankfurt_000000_000294\binary_mask.png"
 input_tensor = preprocess_image(image_path)
 
 # Run inference
@@ -57,5 +59,44 @@ def visualize_results(image_path, predicted_mask):
 
     plt.show()
 
+def calculate_metrics(gt_mask, predicted_mask):
+    evaluator = EvaluationMethods(gt_mask, predicted_mask)
+    iou = evaluator.IoU_method
+    pixel_acc = evaluator.pixel_accuracy
+    f1_score = evaluator.f1_score_accuracy
+    return iou, pixel_acc, f1_score
+
 # Show results
 visualize_results(image_path, predicted_mask)
+
+# find metrics
+if not os.path.exists(gt_image_path):
+    print(f"Error: The file {gt_image_path} does not exist.")
+elif not os.path.exists(pred_image_path):
+    print(f"Error: The file {pred_image_path} does not exist.")
+else:
+    print(f"Loading images from: {gt_image_path} and {pred_image_path}")
+
+    # Load the ground truth and prediction images
+    gt_image = cv2.imread(gt_image_path, cv2.IMREAD_GRAYSCALE)
+    pred_image = cv2.imread(pred_image_path, cv2.IMREAD_GRAYSCALE)
+
+    if gt_image is None:
+        print(f"Error: Failed to load the ground truth image from {gt_image_path}.")
+    elif pred_image is None:
+        print(f"Error: Failed to load the prediction image from {pred_image_path}.")
+    else:
+        print(f"Images loaded successfully. Ground truth shape: {gt_image.shape}, Prediction shape: {pred_image.shape}")
+
+        # Ensure the images have the same shape
+        if gt_image.shape != pred_image.shape:
+            print("Error: The ground truth and prediction images must have the same shape.")
+        else:
+            # Create an evaluator instance
+            evaluator = EvaluationMethods(gt_image, pred_image)
+
+            # Print the evaluation metrics
+            print(f"IoU: {evaluator.IoU_method}")
+            print(f"Pixel Accuracy: {evaluator.pixel_accuracy}")
+            print(f"F1 Score: {evaluator.f1_score_accuracy}")
+

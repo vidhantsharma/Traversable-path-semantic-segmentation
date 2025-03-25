@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision.models import resnet34, ResNet34_Weights
+import torch.optim as optim
 
 class SimpleSegmentationCNN(nn.Module):
     def __init__(self):
@@ -56,6 +58,79 @@ class SimpleSegmentationCNN(nn.Module):
         output = self.final_conv(x6)  # Logits
         return output
 
+class UNetResNet(nn.Module):
+    def __init__(self, num_classes=2):
+        """
+        U-Net with ResNet encoder for semantic segmentation.
+        """
+        super(UNetResNet, self).__init__()
+        
+        # Pretrained ResNet as encoder
+        resnet = resnet34(weights=ResNet34_Weights.IMAGENET1K_V1)
+        
+        self.encoder1 = nn.Sequential(resnet.conv1, resnet.bn1, resnet.relu)  # 64 channels
+        self.encoder2 = resnet.layer1  # 64 channels
+        self.encoder3 = resnet.layer2  # 128 channels
+        self.encoder4 = resnet.layer3  # 256 channels
+        self.encoder5 = resnet.layer4  # 512 channels
+        
+        # Decoder (Upsampling with correct channel dimensions)
+        self.upconv4 = nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2)  # Output: 256 channels
+        self.dec4 = self.conv_block(512, 256)  # (256 up + 256 skip) → 256
+        
+        self.upconv3 = nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2)
+        self.dec3 = self.conv_block(256, 128)  # (128 up + 128 skip) → 128
+        
+        self.upconv2 = nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2)
+        self.dec2 = self.conv_block(128, 64)   # (64 up + 64 skip) → 64
+        
+        self.upconv1 = nn.ConvTranspose2d(64, 32, kernel_size=2, stride=2)
+        self.dec1 = self.conv_block(96, 32)    # (64 up + 32 skip) → 32
+        
+        # Final segmentation layer
+        self.final_conv = nn.Conv2d(32, num_classes, kernel_size=1)
+    
+    def conv_block(self, in_channels, out_channels):
+        """ Basic convolutional block with BatchNorm and ReLU """
+        return nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True)
+        )
+    
+    def forward(self, x):
+        """ Forward pass with skip connections """
+        # Encoder
+        x1 = self.encoder1(x)  # 64 channels
+        x2 = self.encoder2(x1)  # 64 channels
+        x3 = self.encoder3(x2)  # 128 channels
+        x4 = self.encoder4(x3)  # 256 channels
+        x5 = self.encoder5(x4)  # 512 channels
+        
+        # Decoder
+        x = self.upconv4(x5)  # 256 channels
+        x = torch.cat([x, x4], dim=1)  # (256 + 256)
+        x = self.dec4(x)  # Output: 256
+        
+        x = self.upconv3(x)  # 128 channels
+        x = torch.cat([x, x3], dim=1)  # (128 + 128)
+        x = self.dec3(x)  # Output: 128
+        
+        x = self.upconv2(x)  # 64 channels
+        x = torch.cat([x, x2], dim=1)  # (64 + 64)
+        x = self.dec2(x)  # Output: 64
+        
+        x = self.upconv1(x)  # 32 channels
+        x1_upsampled = F.interpolate(x1, size=x.shape[2:], mode="bilinear", align_corners=False)
+        x = torch.cat([x, x1_upsampled], dim=1)
+        # x = torch.cat([x, x1], dim=1)  # (32 + 32)
+        x = self.dec1(x)  # Output: 32
+        
+        return self.final_conv(x)
+
 class SegmentationLoss(nn.Module):
     def __init__(self, use_dice_loss=True):
         """
@@ -108,3 +183,8 @@ class SegmentationLoss(nn.Module):
             return 0.5 * ce + 0.5 * dice  # Weighted loss
         else:
             return ce  # Only CE loss
+        
+def get_optimizer_and_scheduler(model, lr=1e-3, epochs=50):
+    optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
+    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+    return optimizer, scheduler

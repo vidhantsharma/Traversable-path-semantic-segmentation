@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import os
+from sklearn.metrics import f1_score
 
 class EvaluationMethods:
     def __init__(self, ground_truth, prediction):
@@ -11,7 +12,7 @@ class EvaluationMethods:
     def IoU_method(self):
         intersection = np.logical_and(self.ground_truth, self.prediction)
         union = np.logical_or(self.ground_truth, self.prediction)
-        iou = np.sum(intersection) / np.sum(union)
+        iou = np.sum(intersection) / np.sum(union) if np.sum(union) != 0 else 1.0
         return iou
 
     @property
@@ -23,8 +24,9 @@ class EvaluationMethods:
     
     @property
     def f1_score_accuracy(self):
-        # TODO : varshitha
-        pass
+        gt_flat = self.ground_truth.flatten()
+        pred_flat = self.prediction.flatten()
+        return f1_score(gt_flat, pred_flat)
 
 if __name__ == "__main__":
     # Paths to the ground truth and prediction images
@@ -60,3 +62,4 @@ if __name__ == "__main__":
                 # Print the evaluation metrics
                 print(f"IoU: {evaluator.IoU_method}")
                 print(f"Pixel Accuracy: {evaluator.pixel_accuracy}")
+                print(f"F1 Score: {evaluator.f1_score_accuracy}")

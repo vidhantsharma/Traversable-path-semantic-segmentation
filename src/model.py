@@ -133,153 +133,84 @@ class UNetResNet(nn.Module):
         return self.final_conv(x)
     
 class SegNet(nn.Module):
-    def __init__(self, in_chn=3, out_chn=2, BN_momentum=0.5):
+    def __init__(self, out_chn=2, BN_momentum=0.5):
         super(SegNet, self).__init__()
 
-        # SegNet Architecture: Takes input of size (in_chn) (RGB images have 3 channels)
-        # Outputs size label_chn (binary classes, so out_chn = 1 for binary segmentation)
+        vgg16 = vgg16_bn(pretrained=True)
+        features = list(vgg16.features.children())
 
-        self.in_chn = in_chn
-        self.out_chn = out_chn
+        # Remove MaxPool layers manually and divide encoder blocks
+        self.encoder1 = nn.Sequential(*features[0:6])    # Conv2d(3, 64) x2
+        self.encoder2 = nn.Sequential(*features[7:13])   # Conv2d(64, 128) x2
+        self.encoder3 = nn.Sequential(*features[14:23])  # Conv2d(128, 256) x3
+        self.encoder4 = nn.Sequential(*features[24:33])  # Conv2d(256, 512) x3
+        self.encoder5 = nn.Sequential(*features[34:43])  # Conv2d(512, 512) x3
 
-        # MaxPool2d for encoding layers, return_indices for unpooling
-        self.MaxEn = nn.MaxPool2d(2, stride=2, return_indices=True) 
+        # Custom MaxPool layers with return_indices=True
+        self.MaxEn = nn.MaxPool2d(2, stride=2, return_indices=True)
+        self.MaxDe = nn.MaxUnpool2d(2, stride=2)
 
-        # Encoder Stages
-        self.encoder1 = nn.Sequential(
-            nn.Conv2d(self.in_chn, 64, kernel_size=3, padding=1),
-            nn.BatchNorm2d(64, momentum=BN_momentum),
-            nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=3, padding=1),
-            nn.BatchNorm2d(64, momentum=BN_momentum),
-            nn.ReLU()
-        )
-
-        self.encoder2 = nn.Sequential(
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.BatchNorm2d(128, momentum=BN_momentum),
-            nn.ReLU(),
-            nn.Conv2d(128, 128, kernel_size=3, padding=1),
-            nn.BatchNorm2d(128, momentum=BN_momentum),
-            nn.ReLU()
-        )
-
-        self.encoder3 = nn.Sequential(
-            nn.Conv2d(128, 256, kernel_size=3, padding=1),
-            nn.BatchNorm2d(256, momentum=BN_momentum),
-            nn.ReLU(),
-            nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.BatchNorm2d(256, momentum=BN_momentum),
-            nn.ReLU(),
-            nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.BatchNorm2d(256, momentum=BN_momentum),
-            nn.ReLU()
-        )
-
-        self.encoder4 = nn.Sequential(
-            nn.Conv2d(256, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512, momentum=BN_momentum),
-            nn.ReLU(),
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512, momentum=BN_momentum),
-            nn.ReLU(),
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512, momentum=BN_momentum),
-            nn.ReLU()
-        )
-
-        self.encoder5 = nn.Sequential(
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512, momentum=BN_momentum),
-            nn.ReLU(),
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512, momentum=BN_momentum),
-            nn.ReLU(),
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512, momentum=BN_momentum),
-            nn.ReLU()
-        )
-
-        # Decoder Stages
-        self.MaxDe = nn.MaxUnpool2d(2, stride=2) 
-
+        # Decoder (define decoder5 to decoder1 like before)
         self.decoder5 = nn.Sequential(
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512, momentum=BN_momentum),
-            nn.ReLU(),
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512, momentum=BN_momentum),
-            nn.ReLU(),
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512, momentum=BN_momentum),
-            nn.ReLU()
+            nn.Conv2d(512, 512, 3, padding=1), nn.BatchNorm2d(512), nn.ReLU(),
+            nn.Conv2d(512, 512, 3, padding=1), nn.BatchNorm2d(512), nn.ReLU(),
+            nn.Conv2d(512, 512, 3, padding=1), nn.BatchNorm2d(512), nn.ReLU()
         )
 
         self.decoder4 = nn.Sequential(
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512, momentum=BN_momentum),
-            nn.ReLU(),
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512, momentum=BN_momentum),
-            nn.ReLU(),
-            nn.Conv2d(512, 256, kernel_size=3, padding=1),
-            nn.BatchNorm2d(256, momentum=BN_momentum),
-            nn.ReLU()
+            nn.Conv2d(512, 512, 3, padding=1), nn.BatchNorm2d(512), nn.ReLU(),
+            nn.Conv2d(512, 512, 3, padding=1), nn.BatchNorm2d(512), nn.ReLU(),
+            nn.Conv2d(512, 256, 3, padding=1), nn.BatchNorm2d(256), nn.ReLU()
         )
 
         self.decoder3 = nn.Sequential(
-            nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.BatchNorm2d(256, momentum=BN_momentum),
-            nn.ReLU(),
-            nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.BatchNorm2d(256, momentum=BN_momentum),
-            nn.ReLU(),
-            nn.Conv2d(256, 128, kernel_size=3, padding=1),
-            nn.BatchNorm2d(128, momentum=BN_momentum),
-            nn.ReLU()
+            nn.Conv2d(256, 256, 3, padding=1), nn.BatchNorm2d(256), nn.ReLU(),
+            nn.Conv2d(256, 256, 3, padding=1), nn.BatchNorm2d(256), nn.ReLU(),
+            nn.Conv2d(256, 128, 3, padding=1), nn.BatchNorm2d(128), nn.ReLU()
         )
 
         self.decoder2 = nn.Sequential(
-            nn.Conv2d(128, 128, kernel_size=3, padding=1),
-            nn.BatchNorm2d(128, momentum=BN_momentum),
-            nn.ReLU(),
-            nn.Conv2d(128, 64, kernel_size=3, padding=1),
-            nn.BatchNorm2d(64, momentum=BN_momentum),
-            nn.ReLU()
+            nn.Conv2d(128, 128, 3, padding=1), nn.BatchNorm2d(128), nn.ReLU(),
+            nn.Conv2d(128, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU()
         )
 
         self.decoder1 = nn.Sequential(
-            nn.Conv2d(64, 64, kernel_size=3, padding=1),
-            nn.BatchNorm2d(64, momentum=BN_momentum),
-            nn.ReLU(),
-            nn.Conv2d(64, self.out_chn, kernel_size=3, padding=1),
-            nn.BatchNorm2d(self.out_chn, momentum=BN_momentum)
+            nn.Conv2d(64, 64, 3, padding=1), nn.BatchNorm2d(64), nn.ReLU(),
+            nn.Conv2d(64, out_chn, 3, padding=1)
         )
 
     def forward(self, x):
-        # Encoder Stages (with MaxPooling and saving indices for unpooling)
-        x1, ind1 = self.MaxEn(self.encoder1(x))
-        x2, ind2 = self.MaxEn(self.encoder2(x1))
-        x3, ind3 = self.MaxEn(self.encoder3(x2))
-        x4, ind4 = self.MaxEn(self.encoder4(x3))
-        x5, ind5 = self.MaxEn(self.encoder5(x4))
+        x1 = self.encoder1(x)
+        x1p, ind1 = self.MaxEn(x1)
 
-        # Decoder Stages (using MaxUnpooling with saved indices)
-        x = self.MaxDe(x5, ind5, output_size=x4.size())
-        x = self.decoder5(x)
-        x = self.MaxDe(x, ind4, output_size=x3.size())
-        x = self.decoder4(x)
-        x = self.MaxDe(x, ind3, output_size=x2.size())
-        x = self.decoder3(x)
-        x = self.MaxDe(x, ind2, output_size=x1.size())
-        x = self.decoder2(x)
-        x = self.MaxDe(x, ind1)
-        x = self.decoder1(x)
+        x2 = self.encoder2(x1p)
+        x2p, ind2 = self.MaxEn(x2)
 
-        # Apply softmax activation for binary classification
-        x = F.softmax(x, dim=1) # (batch_size, C, H, W)
+        x3 = self.encoder3(x2p)
+        x3p, ind3 = self.MaxEn(x3)
 
-        return x
+        x4 = self.encoder4(x3p)
+        x4p, ind4 = self.MaxEn(x4)
+
+        x5 = self.encoder5(x4p)
+        x5p, ind5 = self.MaxEn(x5)
+
+        d5 = self.MaxDe(x5p, ind5, output_size=x5.size())
+        d5 = self.decoder5(d5)
+
+        d4 = self.MaxDe(d5, ind4, output_size=x4.size())
+        d4 = self.decoder4(d4)
+
+        d3 = self.MaxDe(d4, ind3, output_size=x3.size())
+        d3 = self.decoder3(d3)
+
+        d2 = self.MaxDe(d3, ind2, output_size=x2.size())
+        d2 = self.decoder2(d2)
+
+        d1 = self.MaxDe(d2, ind1, output_size=x1.size())
+        d1 = self.decoder1(d1)
+
+        return F.softmax(d1, dim=1)
 
 class SegmentationLoss(nn.Module):
     def __init__(self, use_dice_loss=True):

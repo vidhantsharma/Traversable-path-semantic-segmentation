@@ -3,14 +3,14 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.utils.tensorboard import SummaryWriter
 from src.dataloader import TraversablePathDataloader
-from src.model import SimpleSegmentationCNN, UNetResNet, SegmentationLoss
+from src.model import SimpleSegmentationCNN, UNetResNet, SegNet,SegmentationLoss
 import os
 
 # Params
 preprocess_data = False
 
 # Hyperparameters
-BATCH_SIZE = 6
+BATCH_SIZE = 4
 NUM_EPOCHS = 50
 LEARNING_RATE = 0.001
 PATIENCE = 5
@@ -46,8 +46,9 @@ train_loader = data_loader.get_train_dataloader()
 val_loader = data_loader.get_validation_dataloader()
 
 # Model, Loss, Optimizer
+# model = SimpleSegmentationCNN().to(DEVICE)
 # model = UNetResNet().to(DEVICE)
-model = SimpleSegmentationCNN().to(DEVICE)
+model = SegNet().to(DEVICE)
 criterion = SegmentationLoss().to(DEVICE)
 optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 writer = SummaryWriter(LOG_DIR)
@@ -141,5 +142,5 @@ def validate(epoch):
     return avg_loss
 
 if __name__ == "__main__":
-    train(use_checkpoint=True)
+    train(use_checkpoint=False)
     writer.close()

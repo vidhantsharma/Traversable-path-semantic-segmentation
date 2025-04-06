@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import resnet34, ResNet34_Weights
+from torchvision.models import vgg16_bn
 import torch.optim as optim
 
 class SimpleSegmentationCNN(nn.Module):
@@ -130,6 +131,155 @@ class UNetResNet(nn.Module):
         x = self.dec1(x)  # Output: 32
         
         return self.final_conv(x)
+    
+class SegNet(nn.Module):
+    def __init__(self, in_chn=3, out_chn=2, BN_momentum=0.5):
+        super(SegNet, self).__init__()
+
+        # SegNet Architecture: Takes input of size (in_chn) (RGB images have 3 channels)
+        # Outputs size label_chn (binary classes, so out_chn = 1 for binary segmentation)
+
+        self.in_chn = in_chn
+        self.out_chn = out_chn
+
+        # MaxPool2d for encoding layers, return_indices for unpooling
+        self.MaxEn = nn.MaxPool2d(2, stride=2, return_indices=True) 
+
+        # Encoder Stages
+        self.encoder1 = nn.Sequential(
+            nn.Conv2d(self.in_chn, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64, momentum=BN_momentum),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64, momentum=BN_momentum),
+            nn.ReLU()
+        )
+
+        self.encoder2 = nn.Sequential(
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128, momentum=BN_momentum),
+            nn.ReLU(),
+            nn.Conv2d(128, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128, momentum=BN_momentum),
+            nn.ReLU()
+        )
+
+        self.encoder3 = nn.Sequential(
+            nn.Conv2d(128, 256, kernel_size=3, padding=1),
+            nn.BatchNorm2d(256, momentum=BN_momentum),
+            nn.ReLU(),
+            nn.Conv2d(256, 256, kernel_size=3, padding=1),
+            nn.BatchNorm2d(256, momentum=BN_momentum),
+            nn.ReLU(),
+            nn.Conv2d(256, 256, kernel_size=3, padding=1),
+            nn.BatchNorm2d(256, momentum=BN_momentum),
+            nn.ReLU()
+        )
+
+        self.encoder4 = nn.Sequential(
+            nn.Conv2d(256, 512, kernel_size=3, padding=1),
+            nn.BatchNorm2d(512, momentum=BN_momentum),
+            nn.ReLU(),
+            nn.Conv2d(512, 512, kernel_size=3, padding=1),
+            nn.BatchNorm2d(512, momentum=BN_momentum),
+            nn.ReLU(),
+            nn.Conv2d(512, 512, kernel_size=3, padding=1),
+            nn.BatchNorm2d(512, momentum=BN_momentum),
+            nn.ReLU()
+        )
+
+        self.encoder5 = nn.Sequential(
+            nn.Conv2d(512, 512, kernel_size=3, padding=1),
+            nn.BatchNorm2d(512, momentum=BN_momentum),
+            nn.ReLU(),
+            nn.Conv2d(512, 512, kernel_size=3, padding=1),
+            nn.BatchNorm2d(512, momentum=BN_momentum),
+            nn.ReLU(),
+            nn.Conv2d(512, 512, kernel_size=3, padding=1),
+            nn.BatchNorm2d(512, momentum=BN_momentum),
+            nn.ReLU()
+        )
+
+        # Decoder Stages
+        self.MaxDe = nn.MaxUnpool2d(2, stride=2) 
+
+        self.decoder5 = nn.Sequential(
+            nn.Conv2d(512, 512, kernel_size=3, padding=1),
+            nn.BatchNorm2d(512, momentum=BN_momentum),
+            nn.ReLU(),
+            nn.Conv2d(512, 512, kernel_size=3, padding=1),
+            nn.BatchNorm2d(512, momentum=BN_momentum),
+            nn.ReLU(),
+            nn.Conv2d(512, 512, kernel_size=3, padding=1),
+            nn.BatchNorm2d(512, momentum=BN_momentum),
+            nn.ReLU()
+        )
+
+        self.decoder4 = nn.Sequential(
+            nn.Conv2d(512, 512, kernel_size=3, padding=1),
+            nn.BatchNorm2d(512, momentum=BN_momentum),
+            nn.ReLU(),
+            nn.Conv2d(512, 512, kernel_size=3, padding=1),
+            nn.BatchNorm2d(512, momentum=BN_momentum),
+            nn.ReLU(),
+            nn.Conv2d(512, 256, kernel_size=3, padding=1),
+            nn.BatchNorm2d(256, momentum=BN_momentum),
+            nn.ReLU()
+        )
+
+        self.decoder3 = nn.Sequential(
+            nn.Conv2d(256, 256, kernel_size=3, padding=1),
+            nn.BatchNorm2d(256, momentum=BN_momentum),
+            nn.ReLU(),
+            nn.Conv2d(256, 256, kernel_size=3, padding=1),
+            nn.BatchNorm2d(256, momentum=BN_momentum),
+            nn.ReLU(),
+            nn.Conv2d(256, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128, momentum=BN_momentum),
+            nn.ReLU()
+        )
+
+        self.decoder2 = nn.Sequential(
+            nn.Conv2d(128, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128, momentum=BN_momentum),
+            nn.ReLU(),
+            nn.Conv2d(128, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64, momentum=BN_momentum),
+            nn.ReLU()
+        )
+
+        self.decoder1 = nn.Sequential(
+            nn.Conv2d(64, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64, momentum=BN_momentum),
+            nn.ReLU(),
+            nn.Conv2d(64, self.out_chn, kernel_size=3, padding=1),
+            nn.BatchNorm2d(self.out_chn, momentum=BN_momentum)
+        )
+
+    def forward(self, x):
+        # Encoder Stages (with MaxPooling and saving indices for unpooling)
+        x1, ind1 = self.MaxEn(self.encoder1(x))
+        x2, ind2 = self.MaxEn(self.encoder2(x1))
+        x3, ind3 = self.MaxEn(self.encoder3(x2))
+        x4, ind4 = self.MaxEn(self.encoder4(x3))
+        x5, ind5 = self.MaxEn(self.encoder5(x4))
+
+        # Decoder Stages (using MaxUnpooling with saved indices)
+        x = self.MaxDe(x5, ind5, output_size=x4.size())
+        x = self.decoder5(x)
+        x = self.MaxDe(x, ind4, output_size=x3.size())
+        x = self.decoder4(x)
+        x = self.MaxDe(x, ind3, output_size=x2.size())
+        x = self.decoder3(x)
+        x = self.MaxDe(x, ind2, output_size=x1.size())
+        x = self.decoder2(x)
+        x = self.MaxDe(x, ind1)
+        x = self.decoder1(x)
+
+        # Apply softmax activation for binary classification
+        x = F.softmax(x, dim=1) # (batch_size, C, H, W)
+
+        return x
 
 class SegmentationLoss(nn.Module):
     def __init__(self, use_dice_loss=True):

@@ -15,3 +15,6 @@ __pycache__/
 
 # ignore checkpoints
 checkpoints/
+
+# ignore video test files
+leftImg8bit_demoVideo/

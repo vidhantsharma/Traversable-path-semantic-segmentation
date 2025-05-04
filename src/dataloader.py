@@ -5,7 +5,8 @@ from pathlib import Path
 import torch
 
 class TraversablePathDataloader:
-    def __init__(self, raw_data_path, processed_data_path, batch_size=32, preprocess_data=False, shuffle=True, transform=None, num_workers=4):
+    def __init__(self, raw_data_path, processed_data_path, batch_size=32, preprocess_data=False, 
+                 shuffle=True, input_image_transform = None, target_mask_transform = None, num_workers=4):
         """
         Initializes the dataloader with the specified parameters.
 
@@ -15,14 +16,16 @@ class TraversablePathDataloader:
             batch_size (int): Number of samples per batch.
             preprocess_data (bool): Whether to preprocess data before loading.
             shuffle (bool): Whether to shuffle the training dataset.
-            transform (callable, optional): Transformations for input images.
+            input_image_transform (callable, optional): Transformations for input images.
+            target_mask_transform (callable, optional): Transformations for target masks.
             num_workers (int): Number of subprocesses for data loading.
         """
         self.data_path = raw_data_path
         self.processed_path = processed_data_path
         self.batch_size = batch_size
         self.shuffle = shuffle
-        self.transform = transform
+        self.target_mask_transform = target_mask_transform
+        self.input_image_transform = input_image_transform
         self.num_workers = num_workers
 
         # Preprocess data if required
@@ -49,7 +52,7 @@ class TraversablePathDataloader:
         Returns:
             DataLoader: PyTorch DataLoader instance.
         """
-        dataset = TraversablePathDataset(self.processed_path, split, self.transform)
+        dataset = TraversablePathDataset(self.processed_path, split, self.input_image_transform, self.target_mask_transform)
         shuffle = self.shuffle if shuffle_override is None else shuffle_override
         return DataLoader(dataset, batch_size=self.batch_size, shuffle=shuffle, num_workers=self.num_workers)
 

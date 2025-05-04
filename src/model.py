@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from torchvision.models import resnet34, ResNet34_Weights
 from torchvision.models import vgg16_bn
 import torch.optim as optim
+from transformers import SegformerFeatureExtractor, SegformerForSemanticSegmentation
 
 class SimpleSegmentationCNN(nn.Module):
     def __init__(self):
@@ -210,7 +211,23 @@ class SegNet(nn.Module):
         d1 = self.MaxDe(d2, ind1, output_size=x1.size())
         d1 = self.decoder1(d1)
 
-        return F.softmax(d1, dim=1)
+        # return F.softmax(d1, dim=1)
+        return d1
+    
+class SegFormerModel(nn.Module):
+    def __init__(self, num_classes=2, model_name='nvidia/segformer-b0-finetuned-ade-512-512'):
+        super(SegFormerModel, self).__init__()
+        self.model = SegformerForSemanticSegmentation.from_pretrained(
+            model_name,
+            num_labels=num_classes,
+            ignore_mismatched_sizes=True
+        )
+
+    def forward(self, x):
+        outputs = self.model(pixel_values=x)
+        logits = outputs.logits
+        logits = F.interpolate(logits, size=(512, 512), mode='bilinear', align_corners=False) # target shape: (B, 512, 512)
+        return logits
 
 class SegmentationLoss(nn.Module):
     def __init__(self, use_dice_loss=True):

@@ -5,15 +5,17 @@ from PIL import Image
 import numpy as np
 
 class TraversablePathDataset(Dataset):
-    def __init__(self, data_path, split, transform=None):
+    def __init__(self, data_path, split, input_image_transform = None, target_mask_transform = None):
         """
         Args:
             data_path (str): Root dataset directory.
             split (str): One of 'train', 'val', or 'test'.
-            transform (callable, optional): Transformations for input images.
+            input_image_transform (callable, optional): Transformations for input images.
+            target_mask_transform (callable, optional): Transformations for target masks.
         """
         self.data_dir = os.path.join(data_path, split)
-        self.transform = transform
+        self.input_image_transform = input_image_transform
+        self.target_mask_transform = target_mask_transform
 
         self.image_paths = []
         self.mask_paths = []
@@ -41,9 +43,10 @@ class TraversablePathDataset(Dataset):
         image = Image.open(img_path).convert("RGB")
         mask = Image.open(mask_path).convert("L")  # Ensure it's grayscale
 
-        if self.transform:
-            image = self.transform(image)
-            mask = self.transform(mask)
+        if self.input_image_transform:
+            image = self.input_image_transform(image)
+        if self.target_mask_transform:
+            mask = self.target_mask_transform(mask)
 
         mask = torch.tensor(np.array(mask, dtype=np.uint8), dtype=torch.long)
 

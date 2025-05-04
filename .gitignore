@@ -18,3 +18,6 @@ checkpoints/
 
 # ignore video test files
 leftImg8bit_demoVideo/
+
+# ignore predicted mask
+output/*

@@ -3,7 +3,7 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.utils.tensorboard import SummaryWriter
 from src.dataloader import TraversablePathDataloader
-from src.model import SimpleSegmentationCNN, UNetResNet, SegNet,SegmentationLoss
+from src.model import SimpleSegmentationCNN, UNetResNet, SegNet,SegmentationLoss, SegFormerModel
 import os
 
 # Params
@@ -27,7 +27,14 @@ BEST_CHECKPOINT_PATH = os.path.join(CHECKPOINT_DIR, "best_checkpoint.pth")
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 # Data Transforms
-transform = transforms.Compose([
+input_image_transform = transforms.Compose([
+    transforms.Resize((512, 512)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], 
+                         std=[0.229, 0.224, 0.225])
+])
+
+target_mask_transform = transforms.Compose([
     transforms.Resize((512, 512)),
     transforms.ToTensor(),
 ])
@@ -38,7 +45,8 @@ data_loader = TraversablePathDataloader(
     processed_data_path=PROCESSED_DATA_PATH,
     batch_size=BATCH_SIZE,
     preprocess_data=preprocess_data,
-    transform=transform,
+    input_image_transform=input_image_transform,
+    target_mask_transform=target_mask_transform,
     num_workers=2
 )
 
@@ -46,9 +54,10 @@ train_loader = data_loader.get_train_dataloader()
 val_loader = data_loader.get_validation_dataloader()
 
 # Model, Loss, Optimizer
-# model = SimpleSegmentationCNN().to(DEVICE)
+model = SimpleSegmentationCNN().to(DEVICE)
 # model = UNetResNet().to(DEVICE)
-model = SegNet().to(DEVICE)
+# model = SegNet().to(DEVICE)
+# model = SegFormerModel().to(DEVICE)
 criterion = SegmentationLoss().to(DEVICE)
 optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 writer = SummaryWriter(LOG_DIR)
@@ -80,11 +89,9 @@ def load_checkpoint():
 def train(use_checkpoint=False):
     start_epoch, best_val_loss = load_checkpoint() if use_checkpoint else (0, float("inf"))
     patience_counter = 0
-    
+    model.train()
     for epoch in range(start_epoch, NUM_EPOCHS):
-        model.train()
         total_loss = 0
-        
         for batch_idx, (images, masks) in enumerate(train_loader):
             images, masks = images.to(DEVICE), masks.to(DEVICE)
             optimizer.zero_grad()

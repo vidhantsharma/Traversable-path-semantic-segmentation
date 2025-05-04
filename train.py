@@ -54,10 +54,10 @@ train_loader = data_loader.get_train_dataloader()
 val_loader = data_loader.get_validation_dataloader()
 
 # Model, Loss, Optimizer
-model = SimpleSegmentationCNN().to(DEVICE)
+# model = SimpleSegmentationCNN().to(DEVICE)
 # model = UNetResNet().to(DEVICE)
 # model = SegNet().to(DEVICE)
-# model = SegFormerModel().to(DEVICE)
+model = SegFormerModel().to(DEVICE)
 criterion = SegmentationLoss().to(DEVICE)
 optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 writer = SummaryWriter(LOG_DIR)

@@ -1,6 +1,6 @@
 from torch.utils.data import DataLoader
 from src.dataloader import TraversablePathDataloader
-from src.model import SegFormerModel
+from src.model import SimpleSegmentationCNN, UNetResNet, SegNet, SegFormerModel
 import os
 import torch
 import torch.nn.functional as F
@@ -25,7 +25,7 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Paths
 RAW_DATA_PATH = "raw_dataset"
 PROCESSED_DATA_PATH = "processed_dataset"
-CHECKPOINT_PATH = r"checkpoints\segformer_model.pth"
+CHECKPOINT_PATH = r"checkpoints\segformer.pth"
 
 # Data Transforms
 input_image_transform = transforms.Compose([
@@ -54,6 +54,9 @@ data_loader = TraversablePathDataloader(
 test_data_loader = data_loader.get_validation_dataloader()
 
 # Load model
+# model = SimpleSegmentationCNN().to(DEVICE)
+# model = UNetResNet().to(DEVICE)
+# model = SegNet().to(DEVICE)
 model = SegFormerModel().to(DEVICE)
 checkpoint = torch.load(CHECKPOINT_PATH, map_location=DEVICE)
 model.load_state_dict(checkpoint['model_state_dict'])
@@ -63,6 +66,7 @@ def main():
     # Evaluation loop
     total_iou = 0.0
     total_accuracy = 0.0
+    total_f1_score = 0.0
     count = 0
     with torch.no_grad():
         for batch_idx, (images, gt_masks) in enumerate(test_data_loader):
@@ -76,21 +80,27 @@ def main():
             preds = torch.argmax(probs, dim=1).cpu().numpy()  # shape: (B, H, W)
 
             for gt_mask, pred_mask in zip(gt_masks, preds):
-                gt_mask_bin = (gt_mask > 0).astype(np.uint8)
-                pred_mask_bin = (pred_mask > 0).astype(np.uint8)
+                # gt_mask_bin = (gt_mask > 0).astype(np.uint8)
+                # pred_mask_bin = (pred_mask > 0).astype(np.uint8)
+                gt_mask_bin = gt_mask
+                pred_mask_bin = pred_mask
 
                 evaluator = EvaluationMethods(gt_mask_bin, pred_mask_bin)
                 total_iou += evaluator.IoU_method
                 total_accuracy += evaluator.pixel_accuracy
+                total_f1_score += evaluator.f1_score_accuracy
                 count += 1
 
     # Average results
     avg_iou = total_iou / count
     avg_acc = total_accuracy / count
+    avg_f1 = total_f1_score / count
 
     print("\nEvaluation Summary:")
     print(f"Average IoU: {avg_iou:.4f}")
     print(f"Average Pixel Accuracy: {avg_acc:.4f}")
+    print(f"Average F1 Score: {avg_f1:.4f}")
+    print("Evaluation completed.")
 
 if __name__ == "__main__":
     main()

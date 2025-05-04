@@ -21,10 +21,11 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Load the trained model
 # model = SimpleSegmentationCNN().to(device)
 # model = UNetResNet().to(device)
+# model = SegNet().to(device)
 model = SegFormerModel().to(device)
 
 # Load the checkpoint
-checkpoint_path = r"checkpoints\segformer_model.pth"  # Change this to your checkpoint path
+checkpoint_path = r"checkpoints\simple_cnn.pth"  # Change this to your checkpoint path
 # checkpoint_path = r"checkpoints\simple_cnn.pth"  # Change this to your checkpoint path
 checkpoint = torch.load(checkpoint_path, map_location=device)
 model.load_state_dict(checkpoint['model_state_dict'])  # Ensure correct key
@@ -111,13 +112,17 @@ def evaluate_metrics(gt_mask_path, predicted_mask_path):
         print(f"Resizing ground truth mask from {gt_image.shape} to {pred_image.shape}")
         gt_image = cv2.resize(gt_image, (pred_image.shape[1], pred_image.shape[0]), interpolation=cv2.INTER_NEAREST)
 
+    # Convert ground truth and prediction to binary (0, 1)
+    gt_image_binary = (gt_image > 0).astype(np.uint8)  # Convert to binary (0 and 1)
+    pred_image_binary = (pred_image > 0).astype(np.uint8)  # Convert to binary (0 and 1)
+
     # Create an evaluator instance
-    evaluator = EvaluationMethods(gt_image, pred_image)
+    evaluator = EvaluationMethods(gt_image_binary, pred_image_binary)
 
     # Print the evaluation metrics
     print(f"IoU: {evaluator.IoU_method}")
     print(f"Pixel Accuracy: {evaluator.pixel_accuracy}")
-    # print(f"F1 Score: {evaluator.f1_score_accuracy}")
+    print(f"F1 Score: {evaluator.f1_score_accuracy}")
 
 
 # Show results

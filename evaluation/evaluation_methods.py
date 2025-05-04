@@ -24,9 +24,9 @@ class EvaluationMethods:
     
     @property
     def f1_score_accuracy(self):
-        gt_flat = self.ground_truth.flatten()
-        pred_flat = self.prediction.flatten()
-        return f1_score(gt_flat, pred_flat)
+        gt_flat = self.ground_truth.flatten().astype(np.uint8)
+        pred_flat = self.prediction.flatten().astype(np.uint8)
+        return f1_score(gt_flat, pred_flat, average='binary')
 
 # if __name__ == "__main__":
 #     # Paths to the ground truth and prediction images

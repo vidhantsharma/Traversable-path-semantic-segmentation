@@ -21,3 +21,6 @@ leftImg8bit_demoVideo/
 
 # ignore predicted mask
 output/*
+
+# ignore videos
+videos/
